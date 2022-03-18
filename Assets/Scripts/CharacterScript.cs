@@ -8,10 +8,12 @@ public class CharacterScript : MonoBehaviour
   [SerializeField] Animator characterAnimator;
   [SerializeField] float movementBounderyLeft, movementBounderyRight;
   [SerializeField] List<LimbScript> limbScriptList = new List<LimbScript>();
+  [SerializeField] float rotateVal = 10f, rotateSpeed = 4;
   private Transform _transform;
   private float _mouseLastPosX;
   private Vector3 _motion = new Vector3(0, 0, 1);
-  private string lastAnimationTrigger = "";
+  private string activeAnim;
+  private bool gameStart;
   #endregion
   #region MAIN FUNC
   private void Awake()
@@ -24,6 +26,16 @@ public class CharacterScript : MonoBehaviour
   }
   private void Update()
   {
+    if (!gameStart)
+    {
+      if (Input.GetMouseButtonDown(0))
+      {
+        characterAnimator.SetTrigger("normalWalk");
+        gameStart = true;
+        UIScript.Instance.CloseTap2Start();
+      }
+      return;
+    }
     Movement();
   }
   private void OnTriggerEnter(Collider other)
@@ -37,7 +49,14 @@ public class CharacterScript : MonoBehaviour
   {
     if (other.CompareTag("Obstacle") || other.CompareTag("Collectable"))
     {
-      SetCharacterHeight();
+      if (activeAnim == "lowCrawl")
+      {
+        _transform.position = new Vector3(_transform.position.x, .5f, _transform.position.z);
+      }
+      else
+      {
+        SetCharacterHeight();
+      }
     }
     if (other.CompareTag("Finish"))
     {
@@ -48,26 +67,20 @@ public class CharacterScript : MonoBehaviour
   #region MOVEMENT
   private void Movement()
   {
-    if (Input.GetMouseButtonDown(0))
-    {
-      _mouseLastPosX = Input.mousePosition.x;
-    }
     if (Input.GetMouseButton(0))
     {
-      var mousePosX = Input.mousePosition.x;
-      if (mousePosX > _mouseLastPosX) { _motion.x = 1; }
-      if (mousePosX < _mouseLastPosX) { _motion.x = -1; }
-      if (mousePosX == _mouseLastPosX) { _motion.x = 0; }
-      _mouseLastPosX = mousePosX;
+      _motion.x = Input.GetAxis("Mouse X");
     }
-    if (Input.GetMouseButtonUp(0))
+    _transform.Translate(_speed * Time.deltaTime * _motion, Space.World);
+    _transform.position = new Vector3(Mathf.Clamp(_transform.position.x, movementBounderyLeft, movementBounderyRight), _transform.position.y, _transform.position.z);
+    var rotY = Mathf.Lerp(_transform.rotation.eulerAngles.x, rotateVal * 10 * _motion.x, rotateSpeed * Time.deltaTime);
+    if ((rotY >= 0 && rotY < rotateVal) || rotY < 0 && (360 + rotY) > (360 - rotateVal))
     {
-      _motion.x = 0;
+      _transform.rotation = Quaternion.Euler(new Vector3(_transform.rotation.x, rotY, _transform.rotation.z));
     }
-    transform.Translate(_speed * Time.deltaTime * _motion);
-    transform.position = new Vector3(Mathf.Clamp(transform.position.x, movementBounderyLeft, movementBounderyRight), transform.position.y, transform.position.z);
   }
   #endregion
+  #region GameFunc
   private void ControlLimbs(Transform t)
   {
     var count = limbScriptList.Count;
@@ -85,13 +98,20 @@ public class CharacterScript : MonoBehaviour
 
         for (int j = length - 1; j >= 0; j--)
         {
-          var sphere = t.GetChild(j).GetComponent<SphereScript>();
-          sphere.transform.parent = limbScriptList[i].transform;
-          sphere.GoLocalPosition(limbScriptList[i].GetFreePos());
-          sphere.SetLimbScript(limbScriptList[i]);
+          t.GetChild(j).GetComponent<SphereScript>().GoTargetSphere(limbScriptList[i].GetFreeSphere());
         }
       }
     }
+  }
+  private void SetCharacterHeight()
+  {
+    var minY = new List<float>();
+    for (int i = 0; i < limbScriptList.Count; i++)
+    {
+      minY.Add(limbScriptList[i].GetMinYItem());
+    }
+    minY.Sort((p1, p2) => p1.CompareTo(p2));
+    _transform.position = new Vector3(_transform.position.x, .5f - minY[0] + 1f, _transform.position.z);
   }
   public void ControlAnimation()
   {
@@ -117,7 +137,15 @@ public class CharacterScript : MonoBehaviour
     {
       triggerName = "injuredJumpRight";
     }
+    if (emptyLimbList[9] && !emptyLimbList[8])
+    {
+      triggerName = "injuredJumpRight";
+    }
     if (!emptyLimbList[7] && !emptyLimbList[9] && emptyLimbList[6] && emptyLimbList[8])
+    {
+      triggerName = "injuredJumpLeft";
+    }
+    if (emptyLimbList[8] && !emptyLimbList[9])
     {
       triggerName = "injuredJumpLeft";
     }
@@ -125,55 +153,13 @@ public class CharacterScript : MonoBehaviour
     {
       triggerName = "lowCrawl";
     }
-    lastAnimationTrigger = triggerName;
+    activeAnim = triggerName;
     characterAnimator.SetTrigger(triggerName);
     CheckGameOver();
   }
-  public void SetCharacterHeight()
-  {
-    var full = true;
-    for (int i = 0; i < limbScriptList.Count; i++)
-    {
-      if (limbScriptList[i].activeItemCount < limbScriptList[i].totalItemCount)
-        full = false;
-    }
-    if (full)
-      return;
-    if (lastAnimationTrigger == "lowCrawl")
-    {
-      transform.position = new Vector3(transform.position.x, .5f, transform.position.z);
-      return;
-    }
-    var legSphereYPositionList = new List<Transform>();
 
-    for (int i = 0; i < limbScriptList[6].transform.childCount; i++)
-    {
-      legSphereYPositionList.Add(limbScriptList[6].transform.GetChild(i).transform);
-    }
-    for (int i = 0; i < limbScriptList[7].transform.childCount; i++)
-    {
-      legSphereYPositionList.Add(limbScriptList[7].transform.GetChild(i).transform);
-    }
-    for (int i = 0; i < limbScriptList[8].transform.childCount; i++)
-    {
-      legSphereYPositionList.Add(limbScriptList[8].transform.GetChild(i).transform);
-    }
-    for (int i = 0; i < limbScriptList[9].transform.childCount; i++)
-    {
-      legSphereYPositionList.Add(limbScriptList[9].transform.GetChild(i).transform);
-    }
-
-    legSphereYPositionList.Sort((p1, p2) => p1.transform.position.y.CompareTo(p2.transform.position.y));
-
-    var y = .5f;
-    RaycastHit raycastHit;
-    if (Physics.Raycast(legSphereYPositionList[0].position, Vector3.down, out raycastHit, 5f, 1 << 6))
-    {
-      y = legSphereYPositionList[0].position.y - raycastHit.transform.position.y - raycastHit.transform.localScale.y;
-    }
-
-    transform.position = new Vector3(transform.position.x, y, transform.position.z);
-  }
+  #endregion
+  #region GameState
   private void CheckGameOver()
   {
     var gameOver = true;
@@ -185,20 +171,21 @@ public class CharacterScript : MonoBehaviour
     if (gameOver)
     {
       _speed = 0;
-      Debug.Log("GAME OVER");
+      UIScript.Instance.ShowGameOver();
     }
   }
   private void Success()
   {
     _speed = 0;
-    characterAnimator.enabled = false;
+    characterAnimator.SetTrigger("finish");
     for (int i = 0; i < limbScriptList.Count; i++)
     {
       for (int j = 0; j < limbScriptList[i].transform.childCount; j++)
       {
-        limbScriptList[i].transform.GetChild(j).GetComponent<SphereScript>().SetIsKinematicFalse();
+        limbScriptList[i].transform.GetChild(j).GetComponent<SphereScript>().SetIsKinematic(false);
       }
     }
-    Debug.Log("SUCCESS");
+    UIScript.Instance.ShowSuccess();
   }
+  #endregion
 }

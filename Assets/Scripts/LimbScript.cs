@@ -5,42 +5,50 @@ public class LimbScript : MonoBehaviour
 {
   public int activeItemCount;
   public int totalItemCount;
-  private List<Vector3> localPositionList = new List<Vector3>();
-  private List<bool> isActiveList = new List<bool>();
+  private List<SphereScript> activeSphereList = new List<SphereScript>();
+  private List<SphereScript> deactiveSphereList = new List<SphereScript>();
   private void Start()
   {
-    var count = transform.childCount;
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < transform.childCount; i++)
     {
-      localPositionList.Add(transform.GetChild(i).transform.localPosition);
-      isActiveList.Add(true);
+      activeSphereList.Add(transform.GetChild(i).GetComponent<SphereScript>());
     }
-    activeItemCount = isActiveList.Count;
+    activeItemCount = activeSphereList.Count;
     totalItemCount = activeItemCount;
   }
-  public void DeactivateItem(Vector3 pos)
+  public void ActivateItem(SphereScript sphereScript)
   {
-    var index = localPositionList.IndexOf(pos);
-    isActiveList[index] = false;
+    if (deactiveSphereList.Contains(sphereScript))
+      deactiveSphereList.Remove(sphereScript);
+    activeSphereList.Add(sphereScript);
+    sphereScript.gameObject.SetActive(true);
+    activeItemCount++;
+  }
+  public void DeactivateItem(SphereScript sphere)
+  {
     activeItemCount--;
     if (activeItemCount == 0)
     {
       CharacterScript.Instance.ControlAnimation();
     }
+    activeSphereList.Remove(sphere);
+    deactiveSphereList.Add(sphere);
   }
-  public Vector3 GetFreePos()
+  public SphereScript GetFreeSphere()
   {
-    var count = isActiveList.Count;
-    var position = Vector3.zero;
-    for (int i = 0; i < count; i++)
+    deactiveSphereList.Sort((p1, p2) => p2.transform.position.y.CompareTo(p1.transform.position.y));
+    var sphere = deactiveSphereList[0];
+    ActivateItem(sphere);
+    return sphere;
+  }
+  public float GetMinYItem()
+  {
+    var y = 100f;
+    if (activeSphereList.Count > 0)
     {
-      if (isActiveList[i] == false)
-      {
-        isActiveList[i] = true;
-        position = localPositionList[i];
-        break;
-      }
+      activeSphereList.Sort((p1, p2) => p2.startYPosition.CompareTo(p1.startYPosition));
+      y = activeSphereList[0].startYPosition;
     }
-    return position;
+    return y;
   }
 }

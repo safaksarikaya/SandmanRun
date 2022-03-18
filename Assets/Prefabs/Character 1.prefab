@@ -2550,8 +2550,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _speed: 3
   characterAnimator: {fileID: 6180765392248538245}
-  movementBounderyLeft: -2.5
-  movementBounderyRight: 2.5
+  movementBounderyLeft: -5
+  movementBounderyRight: 5
   limbScriptList:
   - {fileID: 6415118946310936153}
   - {fileID: 6415118946655603800}
@@ -2563,6 +2563,8 @@ MonoBehaviour:
   - {fileID: 6415118944836083828}
   - {fileID: 6415118944752419375}
   - {fileID: 6415118946042701037}
+  rotateVal: 10
+  rotateSpeed: 4
 --- !u!136 &6415118946601352794
 CapsuleCollider:
   m_ObjectHideFlags: 0

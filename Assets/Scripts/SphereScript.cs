@@ -7,10 +7,12 @@ public class SphereScript : MonoBehaviour
   private Vector3 startLocalPosition, endLocalPosition;
   private float localPositionCounter;
   private bool goLocalPosition;
+  public float startYPosition;
   private void Start()
   {
-    SphereManagerScript.Instance.sphereActiveObjectList.Add(gameObject);
+    SphereManagerScript.Instance.sphereActiveObjectList.Add(this);
     gameStartLocalPosition = transform.localPosition;
+    startYPosition = transform.position.y;
   }
   private void Update()
   {
@@ -22,42 +24,48 @@ public class SphereScript : MonoBehaviour
       {
         localPositionCounter = 0;
         goLocalPosition = false;
-        limbScript.activeItemCount++;
+        SphereManagerScript.Instance.DeactiveteObject(this);
+        CharacterScript.Instance.ControlAnimation();
       }
     }
   }
   private void OnTriggerEnter(Collider other)
   {
-    if (other.CompareTag("Obstacle") && transform.parent.GetComponent<LimbScript>() && transform.parent.GetComponent<LimbScript>() == limbScript)
+    if (other.CompareTag("Obstacle") && transform.parent.GetComponent<LimbScript>())
     {
       Fall();
     }
   }
   private void Fall()
   {
-    limbScript.DeactivateItem(gameStartLocalPosition);
-    transform.parent = SphereManagerScript.Instance.transform;
-    rb.isKinematic = false;
-    Invoke("DeactiveteObj", 1f);
+    limbScript.DeactivateItem(this);
+    gameObject.SetActive(false);
+    var cloneSphere = SphereManagerScript.Instance.GetSphere();
+    cloneSphere.transform.position = transform.position;
+    cloneSphere.SetIsKinematic(false);
+    cloneSphere.DeactiveteObj();
   }
-  private void DeactiveteObj()
+  public void DeactiveteObj()
+  {
+    Invoke("Deactivete", 1f);
+  }
+  private void Deactivete()
   {
     rb.isKinematic = true;
-    SphereManagerScript.Instance.DeactiveteObject(gameObject);
+    SphereManagerScript.Instance.DeactiveteObject(this);
   }
-  public void GoLocalPosition(Vector3 targetPosition)
+  public void SetIsKinematic(bool isKinematic = false)
   {
+    rb.isKinematic = isKinematic;
+  }
+  private SphereScript targetSphere;
+  public void GoTargetSphere(SphereScript targetSphere)
+  {
+    this.targetSphere = targetSphere;
+    transform.parent = targetSphere.transform.parent;
     startLocalPosition = transform.localPosition;
-    endLocalPosition = targetPosition;
+    endLocalPosition = targetSphere.transform.localPosition;
     localPositionCounter = 0;
     goLocalPosition = true;
-  }
-  public void SetLimbScript(LimbScript ls)
-  {
-    limbScript = ls;
-  }
-  public void SetIsKinematicFalse()
-  {
-    rb.isKinematic = false;
   }
 }
